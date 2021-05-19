@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-powerthesaurus",
 	"name": "Power Thesaurus",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "0.9.12",
 	"description": "Look up synonyms for selected english words using powerthesaurus.org",
 	"author": "mgmeyers",
