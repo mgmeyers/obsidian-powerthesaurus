@@ -12,3 +12,4 @@ package-lock.json
 # obsidian
 data.json
 .env
+.DS_Store
