@@ -56,6 +56,8 @@ export function constructThesaurusPopover({
   codeMirrorInstance,
   selection,
 }: ConstructThesaurusPopoverParams) {
+  let isDestroyed = false;
+
   const widget = createDiv({ cls: "pt-select" }, (div) => {
     list.forEach((synonym, i) => {
       div.createDiv({ cls: "pt-select-option" }, (option) => {
@@ -121,6 +123,9 @@ export function constructThesaurusPopover({
   };
 
   const selfDestruct = () => {
+    if (isDestroyed) return;
+    
+    isDestroyed = true;
     widget.remove();
     document.body.removeEventListener("pointerdown", clickOutsideHandler);
     document.removeEventListener("keydown", escHandler);
@@ -144,4 +149,6 @@ export function constructThesaurusPopover({
 
   document.body.addEventListener("pointerdown", clickOutsideHandler);
   document.addEventListener("keydown", escHandler);
+
+  return selfDestruct;
 }

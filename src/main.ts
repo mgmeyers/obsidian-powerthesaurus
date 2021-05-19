@@ -5,13 +5,11 @@ import { constructThesaurusPopover } from "./popover";
 const spaceRegEx = /\s/;
 
 export default class PowerThesaurusPlugin extends Plugin {
+  destroyPopover: (() => void) | null = null;
+
   async onload() {
     this.registerCodeMirror((cm: CodeMirror.Editor) => {
       const cursorHandler = debounce((instance: CodeMirror.Editor) => {
-        if (!navigator.onLine) {
-          return;
-        }
-        
         const selection = instance.getSelection();
 
         if (!selection || spaceRegEx.test(selection)) {
@@ -20,7 +18,7 @@ export default class PowerThesaurusPlugin extends Plugin {
 
         getSynonyms(selection).then((list) => {
           if (list) {
-            constructThesaurusPopover({
+            this.destroyPopover = constructThesaurusPopover({
               list,
               selection,
               codeMirrorInstance: instance,
@@ -29,9 +27,25 @@ export default class PowerThesaurusPlugin extends Plugin {
         });
       }, 1000);
 
-      cm.on("cursorActivity", cursorHandler);
+      cm.on("cursorActivity", instance => {
+        if (this.destroyPopover) {
+          this.destroyPopover();
+          this.destroyPopover = null;
+        }
+
+        if (!navigator.onLine) {
+          return;
+        }
+
+        cursorHandler(instance);
+      });
     });
   }
 
-  onunload() {}
+  onunload() {
+    if (this.destroyPopover) {
+      this.destroyPopover();
+      this.destroyPopover = null;
+    }
+  }
 }
