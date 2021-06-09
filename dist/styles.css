@@ -38,7 +38,8 @@
   padding: 10px;
 }
 
-.pt-link-option:last-child {
+.pt-select > .pt-link-option:last-child,
+.pt-select > .pt-select-option:last-child {
   border-bottom: none;
 }
 

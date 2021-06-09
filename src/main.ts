@@ -1,48 +1,74 @@
-import { Plugin, debounce } from "obsidian";
-import { getSynonyms } from "./api";
+import { Plugin, debounce, MarkdownView } from "obsidian";
+
 import { constructThesaurusPopover } from "./popover";
+import { PowerThesaurusProvider } from "./PowerThesaurusProvider";
 
 const spaceRegEx = /\s/;
 
 export default class PowerThesaurusPlugin extends Plugin {
   destroyPopover: (() => void) | null = null;
+  isPopoverLoading = false;
+
+  handlePointerUp = debounce(
+    () => {
+      const activeLeaf = this.app.workspace.activeLeaf;
+
+      if (activeLeaf && activeLeaf.view instanceof MarkdownView) {
+        const view = activeLeaf.view;
+
+        if (view.getMode() === "source") {
+          const selection = view.editor.getSelection();
+
+          if (!selection || spaceRegEx.test(selection)) return;
+
+          const cursor = view.editor.getCursor("from");
+          const line = view.editor.getLine(cursor.line);
+
+          this.isPopoverLoading = true;
+
+          new PowerThesaurusProvider()
+            .getSynonyms(selection, line, cursor.ch)
+            .then((list) => {
+              if (list?.length && this.isPopoverLoading) {
+                this.isPopoverLoading = false;
+                this.destroyPopover = constructThesaurusPopover({
+                  list,
+                  selection,
+                  editor: view.editor,
+                });
+              }
+            })
+            .catch((e) => {
+              console.error(e);
+            });
+        }
+      }
+    },
+    300,
+    true
+  );
 
   async onload() {
-    this.registerCodeMirror((cm: CodeMirror.Editor) => {
-      const cursorHandler = debounce((instance: CodeMirror.Editor) => {
-        const selection = instance.getSelection();
+    document.on("pointerup", ".CodeMirror-line", this.handlePointerUp);
 
-        if (!selection || spaceRegEx.test(selection)) {
-          return;
-        }
+    this.registerDomEvent(window, "keydown", () => {
+      if (this.isPopoverLoading) {
+        this.isPopoverLoading = false;
+      }
 
-        getSynonyms(selection).then((list) => {
-          if (list) {
-            this.destroyPopover = constructThesaurusPopover({
-              list,
-              selection,
-              codeMirrorInstance: instance,
-            });
-          }
-        });
-      }, 1000);
-
-      cm.on("cursorActivity", instance => {
-        if (this.destroyPopover) {
-          this.destroyPopover();
-          this.destroyPopover = null;
-        }
-
-        if (!navigator.onLine) {
-          return;
-        }
-
-        cursorHandler(instance);
-      });
+      if (this.destroyPopover) {
+        this.destroyPopover();
+      }
     });
   }
 
   onunload() {
+    document.off("pointerup", ".CodeMirror-line", this.handlePointerUp);
+
+    if (this.isPopoverLoading) {
+      this.isPopoverLoading = false;
+    }
+
     if (this.destroyPopover) {
       this.destroyPopover();
       this.destroyPopover = null;
